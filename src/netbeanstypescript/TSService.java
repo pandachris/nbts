@@ -73,7 +73,7 @@ import org.openide.modules.InstalledFileLocator;
 import org.openide.util.RequestProcessor;
 
 /**
- * 
+ *
  * @author jeffrey
  */
 public class TSService {
@@ -128,7 +128,7 @@ public class TSService {
             for (String command: new String[] { "nodejs", "node", "/usr/local/bin/node" }) {
                 try {
                     Process process = new ProcessBuilder()
-                        .command(command, "--harmony", file.toString())
+                        .command(command, "--debug-brk", "--harmony", file.toString())
                         .start();
                     stdin = process.getOutputStream();
                     stdout = new BufferedReader(new InputStreamReader(process.getInputStream()));
@@ -250,6 +250,7 @@ public class TSService {
 
         void dispose() throws Exception {
             nodejs.eval("delete " + progVar + "\n");
+
         }
     }
 
@@ -278,6 +279,33 @@ public class TSService {
             allFiles.put(snapshot.getSource().getFileObject(), fi);
 
             program.setFileSnapshot(fi.relPath, indxbl, snapshot, cntxt.checkForEditorModifications());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    static void addExternalFile(Snapshot snapshot, String virtualPath, Context cntxt) {
+        lock.lock();
+        try {
+            URL rootURL = cntxt.getRootURI();
+
+            ProgramData program = programs.get(rootURL);
+            if (program == null) {
+                if (nodejs == null) {
+                    nodejs = new NodeJSProcess();
+                }
+                program = new ProgramData();
+            }
+            programs.put(rootURL, program);
+
+            FileData fi = new FileData();
+            fi.program = program;
+            fi.relPath = virtualPath;
+            allFiles.put(snapshot.getSource().getFileObject(), fi);
+
+            program.setFileSnapshot(fi.relPath, null, snapshot, false);
         } catch (Exception e) {
             throw new RuntimeException(e);
         } finally {
@@ -347,7 +375,7 @@ public class TSService {
                         Indexable indexable = files[i];
                         String fileName = indexable.getRelativePath();
                         progress.progress(fileName, i);
-                        if (fileName.endsWith(".json")) {
+                        if (fileName.endsWith(".json") || fileName.contains("node_modules") || fileName.contains("typings")) {
                             continue;
                         }
                         lock.lockInterruptibly();

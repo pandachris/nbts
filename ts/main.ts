@@ -92,12 +92,18 @@ class HostImpl implements ts.LanguageServiceHost, ts.ParseConfigHost {
         if (! this.cachedConfig) {
             var path = "";
             var json = {};
-            var configFiles = this.readDirectory(null, '.json');
+            var configFiles = this.readDirectory('', '.json');
             if (configFiles.length) {
+                var tsConfigFiles = [];
+                for (var i = 0; i < configFiles.length; i++) {
+                    if (configFiles[i].indexOf('tsconfig.json') >= 0) {
+                        tsConfigFiles.push(configFiles[i]);
+                    }
+                }
                 // We only support one project per source root for now; if there are multiple
                 // tsconfig.json files under this root, pick the one with the shortest path.
-                configFiles.sort((a, b) => a.length - b.length || a.localeCompare(b))[0];
-                path = configFiles[0];
+                tsConfigFiles.sort((a, b) => a.length - b.length || a.localeCompare(b))[0];
+                path = tsConfigFiles[0];
                 json = ts.parseConfigFileTextToJson(path, this.files[path].snapshot.text).config || {};
             }
             var dir = ts.getDirectoryPath(path);
