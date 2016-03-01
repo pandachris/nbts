@@ -46,6 +46,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.prefs.Preferences;
 import org.json.simple.JSONObject;
 import org.netbeans.api.project.FileOwnerQuery;
@@ -69,6 +70,7 @@ import org.openide.util.RequestProcessor;
  */
 public class TSIndexerFactory extends CustomIndexerFactory {
 
+    private static final Logger log = Logger.getLogger(TSIndexerFactory.class.getName());
     @Override
     public boolean scanStarted(Context context) {
         return false;
@@ -80,6 +82,14 @@ public class TSIndexerFactory extends CustomIndexerFactory {
 
             @Override
             protected void index(Iterable<? extends Indexable> files, Context context) {
+		        TSExtUtil libUtil = TSExtUtil.getInstance(context);
+                if (!libUtil.isTsContext()) {
+                    log.log(Level.INFO, "Context ''{0}'' does not contain TS sources", context.getRoot().getName());
+                    return;
+                }
+                if (context.isAllFilesIndexing()) {
+                    libUtil.addExternalFiles();
+                }
                 for (Indexable indxbl: files) {
                     FileObject fo = context.getRoot().getFileObject(indxbl.getRelativePath());
                     if (fo == null) continue;
