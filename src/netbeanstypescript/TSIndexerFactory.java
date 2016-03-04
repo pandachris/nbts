@@ -44,7 +44,9 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.prefs.Preferences;
@@ -61,7 +63,6 @@ import org.openide.DialogDisplayer;
 import org.openide.NotifyDescriptor;
 import org.openide.filesystems.FileObject;
 import org.openide.filesystems.FileUtil;
-import org.openide.util.RequestProcessor;
 
 /**
  * This "indexer" doesn't really index anything, it's just a way to read all the TS files in a
@@ -71,24 +72,39 @@ import org.openide.util.RequestProcessor;
 public class TSIndexerFactory extends CustomIndexerFactory {
 
     private static final Logger log = Logger.getLogger(TSIndexerFactory.class.getName());
+
+    private final Map<URL, TSExtUtil> extUtilInstances = new HashMap<>();
+
     @Override
     public boolean scanStarted(Context context) {
         return false;
     }
 
+    private TSExtUtil getExtUtilInstance(Context context) {
+        TSExtUtil instance = extUtilInstances.get(context.getRootURI().getPath());
+        if (instance == null) {
+            instance = new TSExtUtil(context);
+            extUtilInstances.put(context.getRootURI(), instance);
+        }
+        return instance;
+    }
+
+    private TSExtUtil removeExtUtilInstance(URL contextRootUri) {
+        return extUtilInstances.remove(contextRootUri);
+    }
+
     @Override
     public CustomIndexer createIndexer() {
         return new CustomIndexer() {
-
             @Override
             protected void index(Iterable<? extends Indexable> files, Context context) {
-		        TSExtUtil libUtil = TSExtUtil.getInstance(context);
-                if (!libUtil.isTsContext()) {
+		        TSExtUtil extUtil = getExtUtilInstance(context);
+                if (!extUtil.isTsContext()) {
                     log.log(Level.INFO, "Context ''{0}'' does not contain TS sources", context.getRoot().getName());
                     return;
                 }
                 if (context.isAllFilesIndexing()) {
-                    libUtil.addExternalFiles();
+                    extUtil.addExternalFiles();
                 }
                 for (Indexable indxbl: files) {
                     FileObject fo = context.getRoot().getFileObject(indxbl.getRelativePath());
@@ -131,6 +147,7 @@ public class TSIndexerFactory extends CustomIndexerFactory {
     public void rootsRemoved(Iterable<? extends URL> removedRoots) {
         for (URL url: removedRoots) {
             TSService.removeProgram(url);
+            removeExtUtilInstance(url);
         }
     }
 

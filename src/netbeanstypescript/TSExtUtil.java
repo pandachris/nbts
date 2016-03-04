@@ -1,6 +1,5 @@
 package netbeanstypescript;
 
-import java.awt.PageAttributes;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
@@ -13,20 +12,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.swing.text.AbstractDocument;
-import javax.swing.text.BadLocationException;
-import javax.swing.text.Document;
-import javax.swing.text.PlainDocument;
-import javax.swing.text.Position;
-import javax.swing.text.Segment;
-import javax.swing.text.SimpleAttributeSet;
-import javax.swing.text.StringContent;
-import javax.swing.undo.UndoableEdit;
 import org.json.simple.JSONObject;
 import org.json.simple.JSONValue;
 import org.netbeans.api.project.FileOwnerQuery;
 import org.netbeans.api.project.Project;
-import org.netbeans.editor.BaseDocument;
 import org.netbeans.modules.parsing.api.Snapshot;
 import org.netbeans.modules.parsing.api.Source;
 import org.netbeans.modules.parsing.spi.indexing.Context;
@@ -35,7 +24,6 @@ import org.openide.filesystems.FileObject;
 import org.openide.filesystems.FileSystem;
 import org.openide.filesystems.FileUtil;
 import org.openide.util.Exceptions;
-import org.openide.util.lookup.AbstractLookup;
 
 /**
  *
@@ -51,8 +39,6 @@ public class TSExtUtil {
     private static final String TYPINGS_DIRNAME = "typings";
     private static final List<String> REQUIRED_FILES = Arrays.asList(new String[]{
         TSCONFIG_FILENAME, NODE_MODULES_DIRNAME, TYPINGS_FILENAME, TYPINGS_DIRNAME});
-
-    private static final Map<String, TSExtUtil> INSTANCES = new HashMap<>();
 
     /**
      * the source context related to this util instance.
@@ -78,22 +64,13 @@ public class TSExtUtil {
      */
     private String tsRootRelPath = null;
 
-    private TSExtUtil(Context context) {
+    public TSExtUtil(Context context) {
         this.context = context;
         this.contextRootPath = context.getRoot().getPath();
         project = FileOwnerQuery.getOwner(context.getRoot());
         if (project != null) {
             scanProject();
         }
-    }
-
-    public static TSExtUtil getInstance(Context context) {
-        TSExtUtil instance = INSTANCES.get(context.getRoot().getPath());
-        if (instance == null) {
-            instance = new TSExtUtil(context);
-            INSTANCES.put(context.getRoot().getPath(), instance);
-        }
-        return instance;
     }
 
     private void scanProject() {
@@ -161,7 +138,7 @@ public class TSExtUtil {
             FileObject target = dir.getFileObject(fileName);
             if (target != null) {
                 filesFound.put(fileName, target);
-                LOGGER.log(Level.INFO, "Required file found: {0}", target.getPath());
+                LOGGER.log(Level.INFO, "Required TS project file found: {0}", target.getPath());
             }
         }
         if (!filesNeeded.isEmpty()) {
@@ -257,7 +234,7 @@ public class TSExtUtil {
                 } else if (!extFiles.containsKey(path)) {
                     Snapshot ss = TSCONFIG_FILENAME.equals(path) ? adjustTsConfigPaths(virtualPath) : Source.create(fileEntry.getValue()).createSnapshot();
 //                    LOGGER.info(ss.getText().toString());
-                    LOGGER.log(Level.INFO, "Adding virtual file: {0} => {1}", new Object[]{path, fileEntry.getValue().getPath()});
+                    LOGGER.log(Level.FINER, "Adding virtual file: {0} => {1}", new Object[]{path, fileEntry.getValue().getPath()});
 //                    LOGGER.info(ss.getText().toString());
                     TSService.addExternalFile(ss, path, context);
                     extFiles.put(path, fileEntry.getValue());
@@ -276,7 +253,7 @@ public class TSExtUtil {
                 recursivelyAddFiles(path, child);
             } else if ("text/typescript".equals(FileUtil.getMIMEType(child))) {
                 if (!extFiles.containsKey(path)) {
-                    LOGGER.log(Level.INFO, "Adding virtual file: {0} => {1}", new Object[]{path, child.getPath()});
+                    LOGGER.log(Level.FINER, "Adding virtual file: {0} => {1}", new Object[]{path, child.getPath()});
                     TSService.addExternalFile(Source.create(child).createSnapshot(), path, context);
                     extFiles.put(path, child);
                 }
@@ -314,17 +291,17 @@ public class TSExtUtil {
                 String parentActual = requiredFileObjects.get(TSCONFIG_FILENAME).getParent().getPath();
                 String absoluteVirtual = contextRootPath + '/' + virtualPath;
                 // the two paths must share a parent
-                LOGGER.log(Level.INFO, "tsconfig.json valid virtual path: {0}", absoluteVirtual.startsWith(parentActual));
+                LOGGER.log(Level.FINER, "tsconfig.json valid virtual path: {0}", absoluteVirtual.startsWith(parentActual));
                 String deltaPath = absoluteVirtual.substring(parentActual.length());
                 if (deltaPath.startsWith("/")) {
                     deltaPath = deltaPath.substring(1);
                 }
-                LOGGER.log(Level.INFO, "tsconfig.json delta path: {0}", deltaPath);
+                LOGGER.log(Level.FINER, "tsconfig.json delta path: {0}", deltaPath);
 
                 if (sourceRoot != null) {
                     // shorten the prefix of the sourceDir
                     compilerOptions.put("sourceRoot", "./"+sourceRoot.substring(deltaPath.length()));
-                    LOGGER.log(Level.INFO, "Altered sourceRoot = ''{0}''", compilerOptions.get("sourceRoot"));
+                    LOGGER.log(Level.FINER, "Altered sourceRoot = ''{0}''", compilerOptions.get("sourceRoot"));
                 }
 
                 if (outDir != null) {
@@ -334,7 +311,7 @@ public class TSExtUtil {
                         outDir = "../" + outDir;
                     }
                     compilerOptions.put("outDir", outDir);
-                    LOGGER.log(Level.INFO, "Altered outDir = ''{0}''", compilerOptions.get("outDir"));
+                    LOGGER.log(Level.FINER, "Altered outDir = ''{0}''", compilerOptions.get("outDir"));
                 }
             }
         }
