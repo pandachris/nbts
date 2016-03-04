@@ -128,7 +128,7 @@ public class TSService {
             for (String command: new String[] { "nodejs", "node", "/usr/local/bin/node" }) {
                 try {
                     Process process = new ProcessBuilder()
-                        .command(command, "--debug-brk", "--harmony", file.toString())
+                        .command(command, /*"--debug-brk",*/ "--harmony", file.toString())
                         .start();
                     stdin = process.getOutputStream();
                     stdout = new BufferedReader(new InputStreamReader(process.getInputStream()));
